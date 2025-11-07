@@ -4,7 +4,40 @@
     "**/.svn": true,
     "**/.hg": true,
     "**/.DS_Store": true,
-    "**/Thumbs.db": true
+    "**/Thumbs.db": true,
+    ".vscode": true,
+    "android": true,
+    "build": true,
+    "ios": true,
+    ".idea": true,
+    ".dart_tool": true,
+    "linux": true,
+    "macos": true,
+    "web": true,
+    "windows": true,
+    ".gitignore": true,
+    ".metadata": true,
+    "analysis_options.yaml": true,
+    "olpha_app.iml": true,
+    "pubspec.lock": true,
+    "README.md": true
   },
-  "hide-files.files": []
+  "hide-files.files": [
+    ".vscode",
+    "android",
+    "build",
+    "ios",
+    ".idea",
+    ".dart_tool",
+    "linux",
+    "macos",
+    "web",
+    "windows",
+    ".gitignore",
+    ".metadata",
+    "analysis_options.yaml",
+    "olpha_app.iml",
+    "pubspec.lock",
+    "README.md"
+  ]
 }
