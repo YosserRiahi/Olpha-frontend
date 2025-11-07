@@ -15,12 +15,13 @@
     "macos": true,
     "web": true,
     "windows": true,
-    ".gitignore": true,
     ".metadata": true,
     "analysis_options.yaml": true,
     "olpha_app.iml": true,
     "pubspec.lock": true,
-    "README.md": true
+    "README.md": true,
+    ".gitignore": true,
+    ".flutter-plugins-dependencies": true
   },
   "hide-files.files": [
     ".vscode",
@@ -33,11 +34,12 @@
     "macos",
     "web",
     "windows",
-    ".gitignore",
     ".metadata",
     "analysis_options.yaml",
     "olpha_app.iml",
     "pubspec.lock",
-    "README.md"
+    "README.md",
+    ".gitignore",
+    ".flutter-plugins-dependencies"
   ]
 }
