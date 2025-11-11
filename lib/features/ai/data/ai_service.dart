@@ -4,10 +4,9 @@ import 'package:meta/meta.dart';
 import 'package:olpha_app/core/utils/secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-
 class AIService {
   final _baseUrl = "https://generativelanguage.googleapis.com/v1beta/models";
-  final _model = "gemini-1.5-flash"; 
+  final _model = "models/text-bison-001";
 
   AIService();
 
@@ -20,24 +19,23 @@ class AIService {
 
     final url = Uri.parse("$_baseUrl/$_model:generateContent?key=$apiKey");
 
- final response = await http.post(
+    final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "contents": [
           {
             "parts": [
-              {"text": prompt}
-            ]
-          }
-        ]
+              {"text": prompt},
+            ],
+          },
+        ],
       }),
     );
 
-
     // final payload = {
     //   "model":
-    //       "gpt-4o-mini", 
+    //       "gpt-4o-mini",
     //   "messages": [
     //     if (systemPrompt.isNotEmpty)
     //       {"role": "system", "content": systemPrompt},
@@ -58,8 +56,8 @@ class AIService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data["candidates"]?[0]?["content"]?["parts"]?[0]?["text"] 
-             ?? "⚠️ No response from AI.";
+      return data["candidates"]?[0]?["content"]?["parts"]?[0]?["text"] ??
+          "⚠️ No response from AI.";
     } else {
       return "❌ Error ${response.statusCode}: ${response.body}";
     }

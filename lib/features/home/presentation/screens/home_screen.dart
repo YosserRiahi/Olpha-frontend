@@ -5,8 +5,17 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text("Welcome to Olpha Home")),
+    return Scaffold(
+      appBar: AppBar(title: const Text("Olpha")),
+      body: Center(child:Column(
+        children: [
+           Text("Home Screen Placeholder"),
+          TextButton(
+  onPressed: () => Navigator.pushNamed(context, '/ai-test'),
+  child: const Text("AI Test Page"),
+),
+        ],
+      )),
     );
   }
 }
