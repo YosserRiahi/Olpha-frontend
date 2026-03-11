@@ -7,7 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:olpha_app/app.dart';
+import 'package:olpha_app/src/app.dart';
 
 
 void main() {

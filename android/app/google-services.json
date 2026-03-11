@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "153477318295",
+    "project_id": "olpha-a7137",
+    "storage_bucket": "olpha-a7137.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:153477318295:android:8b50389cbc4ab6a2a68bd2",
+        "android_client_info": {
+          "package_name": "com.example.olpha_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXCkJpWT0rWHg0NdbMg037Xc3l62OiF-s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

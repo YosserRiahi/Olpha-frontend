@@ -1,0 +1,63 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../features/auth/presentation/screens/login_screen.dart';
+import '../features/auth/presentation/screens/signup_screen.dart';
+import '../features/auth/presentation/screens/seller_pending_screen.dart';
+import '../features/auth/providers/auth_provider.dart';
+import '../features/ai/presentation/screens/ai_test_page.dart';
+import '../features/onboarding/presentation/screens/onboarding_screen.dart';
+import '../features/home/presentation/screens/home_screen.dart';
+import '../features/shops/presentation/screens/shop_detail_screen.dart';
+
+final routerProvider = Provider<GoRouter>((ref) {
+  final notifier = _RouterNotifier(ref);
+  return GoRouter(
+    initialLocation: '/login',
+    refreshListenable: notifier,
+    redirect: notifier.redirect,
+    routes: [
+      GoRoute(path: '/login',          builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/signup',         builder: (_, __) => const SignupScreen()),
+      GoRoute(path: '/home',           builder: (_, __) => const HomeScreen()),
+      GoRoute(path: '/seller-pending', builder: (_, __) => const SellerPendingScreen()),
+      GoRoute(path: '/onboarding',     builder: (_, __) => const OnboardingScreen()),
+      GoRoute(path: '/ai-test',        builder: (_, __) => const AiTestPage()),
+      GoRoute(
+        path: '/shops/:id',
+        builder: (_, state) =>
+            ShopDetailScreen(shopId: state.pathParameters['id']!),
+      ),
+    ],
+  );
+});
+
+class _RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  _RouterNotifier(this._ref) {
+    _ref.listen(authProvider, (_, __) => notifyListeners());
+  }
+
+  String? redirect(BuildContext context, GoRouterState state) {
+    final auth = _ref.read(authProvider);
+    final isAuthenticated = auth.status == AuthStatus.authenticated;
+    final loc = state.matchedLocation;
+    final isAuthRoute = loc == '/login' || loc == '/signup';
+
+    // Not logged in → always go to login
+    if (!isAuthenticated && !isAuthRoute) return '/login';
+
+    // Logged in seller → seller-pending (only block auth routes)
+    if (isAuthenticated && auth.isSeller && isAuthRoute) return '/seller-pending';
+    if (isAuthenticated && auth.isSeller && loc == '/home') return '/seller-pending';
+
+    // Logged in buyer → away from auth routes
+    if (isAuthenticated && auth.isBuyer && isAuthRoute) return '/home';
+
+    // Logged in on auth routes → home
+    if (isAuthenticated && isAuthRoute) return '/home';
+
+    return null;
+  }
+}

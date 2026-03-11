@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:meta/meta.dart';
-import 'package:olpha_app/core/utils/secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AIService {
