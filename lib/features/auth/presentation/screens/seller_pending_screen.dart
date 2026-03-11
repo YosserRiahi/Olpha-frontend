@@ -4,11 +4,27 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 
-class SellerPendingScreen extends ConsumerWidget {
+class SellerPendingScreen extends ConsumerStatefulWidget {
   const SellerPendingScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SellerPendingScreen> createState() => _SellerPendingScreenState();
+}
+
+class _SellerPendingScreenState extends ConsumerState<SellerPendingScreen> {
+  bool _checking = false;
+
+  Future<void> _checkStatus() async {
+    setState(() => _checking = true);
+    await ref.read(authProvider.notifier).refreshMe();
+    if (mounted) setState(() => _checking = false);
+    // Router will auto-redirect if status changed
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final error = ref.watch(authProvider).error;
+
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
@@ -69,23 +85,57 @@ class SellerPendingScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 48),
+
+              if (error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  error,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: const Color(0xFFBA1A1A),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 32),
+
+              // Check Status button
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _checking ? null : _checkStatus,
+                  icon: _checking
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.refresh_rounded, size: 18),
+                  label: Text(_checking ? 'Checking…' : 'Check Status'),
+                ),
+              ),
+              const SizedBox(height: 12),
 
               // Sign out
-              OutlinedButton.icon(
-                onPressed: () => ref.read(authProvider.notifier).signOut(),
-                icon: const Icon(Icons.logout_rounded, size: 18),
-                label: const Text('Sign out'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.textDark,
-                  side: const BorderSide(color: Color(0xFFCCC8C4)),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  textStyle: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => ref.read(authProvider.notifier).signOut(),
+                  icon: const Icon(Icons.logout_rounded, size: 18),
+                  label: const Text('Sign out'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.textDark,
+                    side: const BorderSide(color: Color(0xFFCCC8C4)),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),

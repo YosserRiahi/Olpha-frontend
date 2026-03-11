@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/auth_services.dart';
 
-export '../../../core/services/auth_services.dart' show UserRole;
+export '../../../core/services/auth_services.dart' show UserRole, SellerStatus;
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated }
 
@@ -19,6 +19,11 @@ class AuthState {
   bool get isSeller => user?.role == UserRole.SELLER;
   bool get isBuyer  => user?.role == UserRole.BUYER;
   bool get isAdmin  => user?.role == UserRole.ADMIN;
+
+  // Seller approval state
+  bool get isSellerApproved => isSeller && user?.sellerStatus == SellerStatus.APPROVED;
+  bool get isSellerPending  => isSeller && user?.sellerStatus == SellerStatus.PENDING;
+  bool get isSellerRejected => isSeller && user?.sellerStatus == SellerStatus.REJECTED;
 
   AuthState copyWith({
     AuthStatus? status,
@@ -87,6 +92,24 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> signOut() async {
     await _authService.signOut();
     state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
+  // Called by "Check Status" button on pending screen
+  Future<void> refreshMe() async {
+    state = state.copyWith(status: AuthStatus.loading, clearError: true);
+    try {
+      final result = await _authService.refreshMe();
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        user: result.user,
+        clearError: true,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.authenticated, // keep authenticated, just show error
+        error: e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
   }
 }
 

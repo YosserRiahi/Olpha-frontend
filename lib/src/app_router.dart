@@ -4,7 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/signup_screen.dart';
 import '../features/auth/presentation/screens/seller_pending_screen.dart';
+import '../features/auth/presentation/screens/seller_rejected_screen.dart';
 import '../features/auth/providers/auth_provider.dart';
+import '../features/seller/presentation/screens/seller_dashboard_screen.dart';
+import '../features/products/presentation/screens/seller_products_screen.dart';
+import '../features/products/presentation/screens/add_edit_product_screen.dart';
 import '../features/ai/presentation/screens/ai_test_page.dart';
 import '../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
@@ -20,8 +24,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login',          builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/signup',         builder: (_, __) => const SignupScreen()),
       GoRoute(path: '/home',           builder: (_, __) => const HomeScreen()),
-      GoRoute(path: '/seller-pending', builder: (_, __) => const SellerPendingScreen()),
-      GoRoute(path: '/onboarding',     builder: (_, __) => const OnboardingScreen()),
+      GoRoute(path: '/seller-pending',   builder: (_, __) => const SellerPendingScreen()),
+      GoRoute(path: '/seller-rejected',  builder: (_, __) => const SellerRejectedScreen()),
+      GoRoute(path: '/seller-dashboard', builder: (_, __) => const SellerDashboardScreen()),
+      GoRoute(path: '/seller-products',  builder: (_, __) => const SellerProductsScreen()),
+      GoRoute(
+        path: '/seller-products/add',
+        builder: (_, __) => const AddEditProductScreen(),
+      ),
+      GoRoute(
+        path: '/seller-products/edit/:id',
+        builder: (_, state) =>
+            AddEditProductScreen(productId: state.pathParameters['id']),
+      ),
+      GoRoute(path: '/onboarding',       builder: (_, __) => const OnboardingScreen()),
       GoRoute(path: '/ai-test',        builder: (_, __) => const AiTestPage()),
       GoRoute(
         path: '/shops/:id',
@@ -48,14 +64,19 @@ class _RouterNotifier extends ChangeNotifier {
     // Not logged in → always go to login
     if (!isAuthenticated && !isAuthRoute) return '/login';
 
-    // Logged in seller → seller-pending (only block auth routes)
-    if (isAuthenticated && auth.isSeller && isAuthRoute) return '/seller-pending';
-    if (isAuthenticated && auth.isSeller && loc == '/home') return '/seller-pending';
+    if (isAuthenticated && auth.isSeller) {
+      // Rejected seller
+      if (auth.isSellerRejected && loc != '/seller-rejected') return '/seller-rejected';
+      // Pending seller
+      if (auth.isSellerPending && loc != '/seller-pending') return '/seller-pending';
+      // Approved seller — send to dashboard if on auth or buyer routes
+      if (auth.isSellerApproved && (isAuthRoute || loc == '/home')) return '/seller-dashboard';
+    }
 
     // Logged in buyer → away from auth routes
     if (isAuthenticated && auth.isBuyer && isAuthRoute) return '/home';
 
-    // Logged in on auth routes → home
+    // Any other authenticated user on auth routes → home
     if (isAuthenticated && isAuthRoute) return '/home';
 
     return null;

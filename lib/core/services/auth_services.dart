@@ -6,6 +6,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 // ignore: constant_identifier_names
 enum UserRole { BUYER, SELLER, ADMIN }
 
+// ignore: constant_identifier_names
+enum SellerStatus { PENDING, APPROVED, REJECTED }
+
 UserRole _parseRole(String? raw) {
   switch (raw) {
     case 'SELLER': return UserRole.SELLER;
@@ -14,17 +17,28 @@ UserRole _parseRole(String? raw) {
   }
 }
 
+SellerStatus? _parseSellerStatus(String? raw) {
+  switch (raw) {
+    case 'APPROVED': return SellerStatus.APPROVED;
+    case 'REJECTED': return SellerStatus.REJECTED;
+    case 'PENDING':  return SellerStatus.PENDING;
+    default:         return null;
+  }
+}
+
 class AuthUser {
   final String id;
   final String email;
   final String? name;
   final UserRole role;
+  final SellerStatus? sellerStatus;
 
   const AuthUser({
     required this.id,
     required this.email,
     this.name,
     required this.role,
+    this.sellerStatus,
   });
 
   factory AuthUser.fromJson(Map<String, dynamic> json) => AuthUser(
@@ -32,6 +46,7 @@ class AuthUser {
         email: json['email'] as String,
         name: json['name'] as String?,
         role: _parseRole(json['role'] as String?),
+        sellerStatus: _parseSellerStatus(json['sellerStatus'] as String?),
       );
 }
 
@@ -113,6 +128,24 @@ class AuthService {
   }
 
   Future<void> signOut() => clearTokens();
+
+  // GET /auth/me — fetches fresh user data from backend (used by "Check Status")
+  Future<AuthResult> refreshMe() async {
+    final token = await getAccessToken();
+    if (token == null) throw Exception('Not authenticated');
+    final res = await http.get(
+      Uri.parse('$_baseUrl/auth/me'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw Exception(body['error'] ?? 'Failed to refresh status');
+    }
+    return _parseAuthResult(res.body);
+  }
 
   Future<bool> refreshAccessToken() async {
     final refresh = await getRefreshToken();
