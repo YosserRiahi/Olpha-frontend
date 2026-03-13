@@ -27,18 +27,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final success = await ref.read(authProvider.notifier).login(
+    // Just authenticate — the router redirect handles where to send the user
+    // based on their live role + sellerStatus from the backend.
+    await ref.read(authProvider.notifier).login(
           _emailController.text.trim(),
           _passwordController.text,
         );
-    if (success && mounted) {
-      final role = ref.read(authProvider).user?.role;
-      if (role == UserRole.SELLER) {
-        context.go('/seller-pending');
-      } else {
-        context.go('/home');
-      }
-    }
   }
 
   @override
@@ -46,6 +40,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authProvider);
     final isLoading = authState.status == AuthStatus.loading;
     final size = MediaQuery.of(context).size;
+
+    // ── Splash screen while session is being restored ─────────────────────
+    if (authState.status == AuthStatus.initial) {
+      return Scaffold(
+        backgroundColor: AppTheme.primary,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Olpha',
+                style: GoogleFonts.fredoka(
+                  fontSize: 56,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 32),
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white54,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.primary,

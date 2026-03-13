@@ -20,7 +20,6 @@ class AuthState {
   bool get isBuyer  => user?.role == UserRole.BUYER;
   bool get isAdmin  => user?.role == UserRole.ADMIN;
 
-  // Seller approval state
   bool get isSellerApproved => isSeller && user?.sellerStatus == SellerStatus.APPROVED;
   bool get isSellerPending  => isSeller && user?.sellerStatus == SellerStatus.PENDING;
   bool get isSellerRejected => isSeller && user?.sellerStatus == SellerStatus.REJECTED;
@@ -43,8 +42,35 @@ class AuthNotifier extends Notifier<AuthState> {
   final _authService = AuthService();
 
   @override
-  AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+  AuthState build() {
+    // Schedule async session restore — never block the UI thread
+    Future.microtask(_init);
+    return const AuthState(status: AuthStatus.initial);
+  }
 
+  // ── Auto session restore ──────────────────────────────────────────────────
+  // Called once on startup. Reads stored token and calls GET /auth/me so we
+  // always have the *live* sellerStatus from the DB — no stale JWT data.
+  Future<void> _init() async {
+    final token = await _authService.getAccessToken();
+    if (token == null) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+      return;
+    }
+    try {
+      final result = await _authService.refreshMe();
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        user: result.user,
+      );
+    } catch (_) {
+      // Token expired or server unreachable — treat as logged out
+      await _authService.clearTokens();
+      state = const AuthState(status: AuthStatus.unauthenticated);
+    }
+  }
+
+  // ── Login ─────────────────────────────────────────────────────────────────
   Future<bool> login(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading, clearError: true);
     try {
@@ -64,6 +90,7 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
+  // ── Register ──────────────────────────────────────────────────────────────
   Future<bool> register(
       String email, String password, String? name, UserRole role) async {
     state = state.copyWith(status: AuthStatus.loading, clearError: true);
@@ -89,12 +116,13 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
+  // ── Sign out ──────────────────────────────────────────────────────────────
   Future<void> signOut() async {
     await _authService.signOut();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
-  // Called by "Check Status" button on pending screen
+  // ── Refresh status (manual fallback on pending screen) ───────────────────
   Future<void> refreshMe() async {
     state = state.copyWith(status: AuthStatus.loading, clearError: true);
     try {
@@ -106,7 +134,7 @@ class AuthNotifier extends Notifier<AuthState> {
       );
     } catch (e) {
       state = state.copyWith(
-        status: AuthStatus.authenticated, // keep authenticated, just show error
+        status: AuthStatus.authenticated,
         error: e.toString().replaceFirst('Exception: ', ''),
       );
     }

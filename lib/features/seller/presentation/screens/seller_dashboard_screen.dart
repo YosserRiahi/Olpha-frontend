@@ -317,7 +317,7 @@ class SellerDashboardScreen extends ConsumerWidget {
                           _DashboardTile(
                             icon: Icons.edit_outlined,
                             label: 'Edit Shop',
-                            onTap: () {}, // TODO: navigate to edit shop
+                            onTap: () => context.push('/seller-shop-edit'),
                           ),
                         ],
                       ),

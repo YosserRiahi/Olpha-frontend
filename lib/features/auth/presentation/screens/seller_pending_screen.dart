@@ -14,6 +14,14 @@ class SellerPendingScreen extends ConsumerStatefulWidget {
 class _SellerPendingScreenState extends ConsumerState<SellerPendingScreen> {
   bool _checking = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Auto-check the moment this screen opens — if the admin already approved
+    // the seller, the router will redirect them away immediately.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkStatus());
+  }
+
   Future<void> _checkStatus() async {
     setState(() => _checking = true);
     await ref.read(authProvider.notifier).refreshMe();
