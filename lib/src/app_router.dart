@@ -6,9 +6,8 @@ import '../features/auth/presentation/screens/signup_screen.dart';
 import '../features/auth/presentation/screens/seller_pending_screen.dart';
 import '../features/auth/presentation/screens/seller_rejected_screen.dart';
 import '../features/auth/providers/auth_provider.dart';
-import '../features/seller/presentation/screens/seller_dashboard_screen.dart';
+import '../features/seller/presentation/screens/seller_shell_screen.dart';
 import '../features/seller/presentation/screens/edit_shop_screen.dart';
-import '../features/products/presentation/screens/seller_products_screen.dart';
 import '../features/products/presentation/screens/add_edit_product_screen.dart';
 import '../features/ai/presentation/screens/ai_test_page.dart';
 import '../features/onboarding/presentation/screens/onboarding_screen.dart';
@@ -27,9 +26,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/home',           builder: (_, __) => const HomeScreen()),
       GoRoute(path: '/seller-pending',   builder: (_, __) => const SellerPendingScreen()),
       GoRoute(path: '/seller-rejected',  builder: (_, __) => const SellerRejectedScreen()),
-      GoRoute(path: '/seller-dashboard', builder: (_, __) => const SellerDashboardScreen()),
+      GoRoute(path: '/seller-dashboard', builder: (_, __) => const SellerShellScreen()),
       GoRoute(path: '/seller-shop-edit', builder: (_, __) => const EditShopScreen()),
-      GoRoute(path: '/seller-products',  builder: (_, __) => const SellerProductsScreen()),
       GoRoute(
         path: '/seller-products/add',
         builder: (_, __) => const AddEditProductScreen(),

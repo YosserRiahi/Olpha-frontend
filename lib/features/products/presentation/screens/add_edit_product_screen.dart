@@ -1,23 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/image_upload_service.dart';
 import '../../providers/product_provider.dart';
-
-// ── Category map (same as products screen) ────────────────────────────────────
-const _categories = <String, IconData>{
-  'Jewelry':   Icons.diamond_outlined,
-  'Ceramics':  Icons.water_drop_outlined,
-  'Textiles':  Icons.texture_rounded,
-  'Leather':   Icons.workspace_premium_outlined,
-  'Wood':      Icons.forest_outlined,
-  'Candles':   Icons.local_fire_department_outlined,
-  'Paintings': Icons.palette_outlined,
-  'Pottery':   Icons.egg_alt_outlined,
-  'Other':     Icons.category_outlined,
-};
+import '../../../seller/presentation/screens/seller_dashboard_screen.dart'
+    show kCategoryMeta;
 
 class AddEditProductScreen extends ConsumerStatefulWidget {
   final String? productId;
@@ -29,16 +21,23 @@ class AddEditProductScreen extends ConsumerStatefulWidget {
 }
 
 class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
-  final _formKey    = GlobalKey<FormState>();
-  final _nameCtrl   = TextEditingController();
-  final _descCtrl   = TextEditingController();
-  final _priceCtrl  = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _priceCtrl = TextEditingController();
 
-  String? _selectedCategory;
+  String? _category;
   int _stock = 0;
   bool _saving = false;
-  bool _initialised = false;
   String? _error;
+
+  /// Mixed list: String (existing URL) or XFile (newly picked)
+  final List<dynamic> _images = [];
+
+  static const _categories = [
+    'Jewelry', 'Ceramics', 'Textiles', 'Leather',
+    'Wood', 'Candles', 'Paintings', 'Pottery', 'Other',
+  ];
 
   bool get _isEdit => widget.productId != null;
 
@@ -50,6 +49,22 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
     }
   }
 
+  void _loadProduct() {
+    final products = ref.read(myProductsProvider).valueOrNull ?? [];
+    final p = products.where((x) => x.id == widget.productId).firstOrNull;
+    if (p == null) return;
+    setState(() {
+      _nameCtrl.text = p.name;
+      _descCtrl.text = p.description ?? '';
+      _priceCtrl.text = p.price.toString();
+      _category = p.category;
+      _stock = p.stock;
+      _images
+        ..clear()
+        ..addAll(p.imageUrls);
+    });
+  }
+
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -58,54 +73,67 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
     super.dispose();
   }
 
-  void _loadProduct() {
-    if (_initialised) return;
-    final products = ref.read(myProductsProvider).valueOrNull;
-    if (products == null) return;
-    final product = products.where((p) => p.id == widget.productId).firstOrNull;
-    if (product == null) return;
-    _nameCtrl.text       = product.name;
-    _descCtrl.text       = product.description ?? '';
-    _priceCtrl.text      = product.price.toStringAsFixed(0);
-    _selectedCategory    = product.category;
-    _stock               = product.stock;
-    _initialised = true;
-    setState(() {});
+  // ── Image picker ─────────────────────────────────────────────────────────────
+  Future<void> _pickImage() async {
+    if (_images.length >= 5) return;
+    final picker = ImagePicker();
+    final xFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1200,
+    );
+    if (xFile != null) setState(() => _images.add(xFile));
   }
 
-  Future<void> _submit() async {
+  void _removeImage(int index) => setState(() => _images.removeAt(index));
+
+  // ── Save / submit ─────────────────────────────────────────────────────────────
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-
-    final price = double.tryParse(_priceCtrl.text.replaceAll(',', '.'));
-    if (price == null || price <= 0) {
-      setState(() => _error = 'Please enter a valid price');
-      return;
-    }
-
     setState(() { _saving = true; _error = null; });
 
     try {
+      // Upload any newly picked XFile images
+      final finalUrls = <String>[];
+      for (final img in _images) {
+        if (img is String) {
+          finalUrls.add(img);
+        } else if (img is XFile) {
+          final url = await ImageUploadService.uploadImage(File(img.path));
+          finalUrls.add(url);
+        }
+      }
+
+      final price = double.parse(_priceCtrl.text.trim());
+
       if (_isEdit) {
         await ref.read(myProductsProvider.notifier).updateProduct(
           widget.productId!,
           {
-            'name':        _nameCtrl.text.trim(),
-            'description': _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-            'price':       price,
-            'stock':       _stock,
-            'category':    _selectedCategory,
+            'name': _nameCtrl.text.trim(),
+            'description': _descCtrl.text.trim().isEmpty
+                ? null
+                : _descCtrl.text.trim(),
+            'price': price,
+            'stock': _stock,
+            'category': _category,
+            'imageUrls': finalUrls,
           },
         );
       } else {
         await ref.read(myProductsProvider.notifier).createProduct(
-          name:        _nameCtrl.text.trim(),
-          description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-          price:       price,
-          stock:       _stock,
-          category:    _selectedCategory,
+          name: _nameCtrl.text.trim(),
+          description: _descCtrl.text.trim().isEmpty
+              ? null
+              : _descCtrl.text.trim(),
+          price: price,
+          stock: _stock,
+          category: _category,
+          imageUrls: finalUrls,
         );
       }
-      if (mounted) context.pop();
+
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -121,278 +149,292 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
       backgroundColor: AppTheme.background,
       body: CustomScrollView(
         slivers: [
-          // ── App bar ──────────────────────────────────────────────────
+          // ── App bar ────────────────────────────────────────────────────────
           SliverAppBar(
             backgroundColor: AppTheme.primary,
-            expandedHeight: 110,
             pinned: true,
             leading: IconButton(
-              onPressed: () => context.pop(),
-              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
+              onPressed: () => Navigator.of(context).pop(),
             ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            title,
-                            style: GoogleFonts.fredoka(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const Spacer(),
-                          _saving
-                              ? const Padding(
-                                  padding: EdgeInsets.only(right: 4),
-                                  child: SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2.5, color: Colors.white),
-                                  ),
-                                )
-                              : FilledButton(
-                                  onPressed: _submit,
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor:
-                                        Colors.white.withValues(alpha: 0.2),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 18, vertical: 8),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10)),
-                                    textStyle: GoogleFonts.poppins(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  child: const Text('Save'),
-                                ),
-                        ],
-                      ),
-                      Text(
-                        _isEdit
-                            ? 'Update your product details'
-                            : 'Add a new product to your shop',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.75),
-                        ),
-                      ),
-                    ],
+            title: Text(title,
+                style: GoogleFonts.fredoka(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white)),
+            actions: [
+              if (_saving)
+                const Padding(
+                  padding: EdgeInsets.only(right: 16),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
                   ),
+                )
+              else
+                TextButton(
+                  onPressed: _save,
+                  child: Text('Save',
+                      style: GoogleFonts.poppins(
+                          color: Colors.white, fontWeight: FontWeight.w600)),
                 ),
-              ),
-            ),
+            ],
           ),
 
-          // ── Form ──────────────────────────────────────────────────────
+          // ── Body ───────────────────────────────────────────────────────────
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Form(
-                key: _formKey,
+            child: Form(
+              key: _formKey,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Section: Product Info ────────────────────
+                    // ── Images section ─────────────────────────────────────
+                    _SectionLabel(label: 'Photos'),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 96,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          // Add button
+                          if (_images.length < 5)
+                            GestureDetector(
+                              onTap: _pickImage,
+                              child: Container(
+                                width: 88,
+                                height: 88,
+                                margin: const EdgeInsets.only(right: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: const Color(0xFFD0CCB8)),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.add_a_photo_outlined,
+                                        color: AppTheme.primary, size: 24),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${_images.length}/5',
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 10,
+                                          color: const Color(0xFF9E9B97)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          // Image previews
+                          ..._images.asMap().entries.map((entry) {
+                            final i = entry.key;
+                            final img = entry.value;
+                            return Stack(
+                              children: [
+                                Container(
+                                  width: 88,
+                                  height: 88,
+                                  margin: const EdgeInsets.only(right: 10),
+                                  clipBehavior: Clip.hardEdge,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: const Color(0xFFF2EFEA),
+                                  ),
+                                  child: img is String
+                                      ? CachedNetworkImage(
+                                          imageUrl: img,
+                                          fit: BoxFit.cover,
+                                          errorWidget: (_, __, ___) =>
+                                              const Icon(
+                                                  Icons.broken_image_outlined),
+                                        )
+                                      : Image.file(
+                                          File((img as XFile).path),
+                                          fit: BoxFit.cover,
+                                        ),
+                                ),
+                                Positioned(
+                                  top: 2,
+                                  right: 12,
+                                  child: GestureDetector(
+                                    onTap: () => _removeImage(i),
+                                    child: Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.close_rounded,
+                                          color: Colors.white, size: 12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ── Product info card ──────────────────────────────────
                     _SectionLabel(label: 'Product Info'),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.cardWhite,
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
                         children: [
-                          // Name
                           TextFormField(
                             controller: _nameCtrl,
+                            textCapitalization: TextCapitalization.sentences,
                             decoration: const InputDecoration(
                               labelText: 'Product name *',
-                              prefixIcon: Icon(Icons.inventory_2_outlined),
+                              prefixIcon: Icon(Icons.label_outline_rounded),
                             ),
-                            textCapitalization: TextCapitalization.words,
                             validator: (v) =>
                                 (v == null || v.trim().isEmpty)
-                                    ? 'Product name is required'
+                                    ? 'Name is required'
                                     : null,
                           ),
-                          const SizedBox(height: 12),
-
-                          // Category with icon in items
+                          const SizedBox(height: 14),
                           DropdownButtonFormField<String>(
-                            value: _selectedCategory,
+                            value: _category,
                             decoration: const InputDecoration(
                               labelText: 'Category',
                               prefixIcon: Icon(Icons.category_outlined),
                             ),
-                            items: _categories.entries
-                                .map((e) => DropdownMenuItem(
-                                      value: e.key,
-                                      child: Row(
-                                        children: [
-                                          Icon(e.value,
-                                              size: 16,
-                                              color: const Color(0xFF7A7570)),
-                                          const SizedBox(width: 8),
-                                          Text(e.key),
-                                        ],
-                                      ),
-                                    ))
-                                .toList(),
+                            items: _categories.map((c) {
+                              final meta = kCategoryMeta[c]!;
+                              return DropdownMenuItem(
+                                value: c,
+                                child: Row(
+                                  children: [
+                                    Icon(meta.icon,
+                                        color: meta.color, size: 18),
+                                    const SizedBox(width: 10),
+                                    Text(c,
+                                        style: GoogleFonts.poppins(
+                                            fontSize: 14)),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
                             onChanged: (v) =>
-                                setState(() => _selectedCategory = v),
-                            style: GoogleFonts.poppins(
-                                fontSize: 14, color: AppTheme.textDark),
+                                setState(() => _category = v),
                           ),
-                          const SizedBox(height: 12),
-
-                          // Description
+                          const SizedBox(height: 14),
                           TextFormField(
                             controller: _descCtrl,
+                            maxLines: 4,
+                            maxLength: 500,
+                            textCapitalization: TextCapitalization.sentences,
                             decoration: const InputDecoration(
                               labelText: 'Description (optional)',
                               prefixIcon: Padding(
-                                padding: EdgeInsets.only(bottom: 48),
+                                padding: EdgeInsets.only(bottom: 56),
                                 child: Icon(Icons.notes_rounded),
                               ),
                               alignLabelWithHint: true,
                             ),
-                            maxLines: 3,
-                            maxLength: 500,
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
 
-                    // ── Section: Pricing & Stock ─────────────────
+                    const SizedBox(height: 16),
+
+                    // ── Pricing & stock card ───────────────────────────────
                     _SectionLabel(label: 'Pricing & Stock'),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.cardWhite,
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
                         children: [
-                          // Price field with TND badge
                           TextFormField(
                             controller: _priceCtrl,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
                             inputFormatters: [
                               FilteringTextInputFormatter.allow(
-                                  RegExp(r'[0-9.,]')),
+                                  RegExp(r'^\d+\.?\d{0,2}'))
                             ],
                             decoration: InputDecoration(
                               labelText: 'Price *',
                               prefixIcon: const Icon(Icons.sell_outlined),
-                              suffixIcon: Container(
-                                margin: const EdgeInsets.all(8),
+                              suffix: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 0),
+                                    horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primary.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: AppTheme.primary,
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: Center(
-                                  child: Text(
-                                    'TND',
+                                child: Text('TND',
                                     style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.primary,
-                                    ),
-                                  ),
-                                ),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    )),
                               ),
                             ),
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) {
                                 return 'Price is required';
                               }
-                              final p = double.tryParse(
-                                  v.replaceAll(',', '.'));
-                              if (p == null || p <= 0) {
+                              final n = double.tryParse(v);
+                              if (n == null || n <= 0) {
                                 return 'Enter a valid price';
                               }
                               return null;
                             },
                           ),
                           const SizedBox(height: 16),
-
-                          // Stock stepper
                           Row(
                             children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.inputFill,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(Icons.layers_outlined,
-                                    size: 20, color: Color(0xFF7A7570)),
-                              ),
+                              const Icon(Icons.inventory_2_outlined,
+                                  size: 20,
+                                  color: Color(0xFF9E9B97)),
                               const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Stock quantity',
+                              Text('Stock',
                                   style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    color: const Color(0xFF7A7570),
+                                      fontSize: 14,
+                                      color: const Color(0xFF7A7570))),
+                              const Spacer(),
+                              _StepperBtn(
+                                icon: Icons.remove_rounded,
+                                onTap: () {
+                                  if (_stock > 0) setState(() => _stock--);
+                                },
+                              ),
+                              SizedBox(
+                                width: 48,
+                                child: Text(
+                                  '$_stock',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.textDark,
                                   ),
                                 ),
                               ),
-                              // Stepper
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: AppTheme.inputFill,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _StepperBtn(
-                                      icon: Icons.remove_rounded,
-                                      onTap: () {
-                                        if (_stock > 0) {
-                                          setState(() => _stock--);
-                                        }
-                                      },
-                                    ),
-                                    SizedBox(
-                                      width: 44,
-                                      child: Text(
-                                        '$_stock',
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.fredoka(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.textDark,
-                                        ),
-                                      ),
-                                    ),
-                                    _StepperBtn(
-                                      icon: Icons.add_rounded,
-                                      onTap: () => setState(() => _stock++),
-                                    ),
-                                  ],
-                                ),
+                              _StepperBtn(
+                                icon: Icons.add_rounded,
+                                onTap: () => setState(() => _stock++),
                               ),
                             ],
                           ),
@@ -400,51 +442,52 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
                       ),
                     ),
 
-                    // ── Error ────────────────────────────────────
+                    // ── Error ──────────────────────────────────────────────
                     if (_error != null) ...[
                       const SizedBox(height: 16),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFEDED),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Text(
-                          _error!,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            color: const Color(0xFFBA1A1A),
-                          ),
-                        ),
+                        child: Text(_error!,
+                            style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: const Color(0xFFBA1A1A))),
                       ),
                     ],
 
-                    const SizedBox(height: 32),
-
-                    // ── Submit button ────────────────────────────
+                    const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _saving ? null : _submit,
-                        icon: _saving
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.check_rounded, size: 18),
-                        label: Text(
-                          _saving
-                              ? 'Saving…'
-                              : _isEdit
-                                  ? 'Update Product'
-                                  : 'Save Product',
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
                         ),
+                        onPressed: _saving ? null : _save,
+                        child: _saving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white),
+                              )
+                            : Text(
+                                _isEdit ? 'Update Product' : 'Save Product',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white),
+                              ),
                       ),
                     ),
-                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -462,38 +505,33 @@ class _SectionLabel extends StatelessWidget {
   const _SectionLabel({required this.label});
 
   @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: GoogleFonts.fredoka(
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-        color: AppTheme.textDark,
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Text(
+        label,
+        style: GoogleFonts.fredoka(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textDark,
+        ),
+      );
 }
 
 // ── Stepper button ────────────────────────────────────────────────────────────
 class _StepperBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-
   const _StepperBtn({required this.icon, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: AppTheme.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 18, color: AppTheme.primary),
         ),
-        child: Icon(icon, size: 18, color: AppTheme.primary),
-      ),
-    );
-  }
+      );
 }

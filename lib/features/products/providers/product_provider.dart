@@ -17,6 +17,7 @@ class MyProductsNotifier extends AsyncNotifier<List<ProductModel>> {
     required double price,
     int stock = 0,
     String? category,
+    List<String> imageUrls = const [],
   }) async {
     final product = await _service.createProduct(
       name: name,
@@ -24,6 +25,7 @@ class MyProductsNotifier extends AsyncNotifier<List<ProductModel>> {
       price: price,
       stock: stock,
       category: category,
+      imageUrls: imageUrls,
     );
     state = AsyncData([product, ...?state.valueOrNull]);
   }

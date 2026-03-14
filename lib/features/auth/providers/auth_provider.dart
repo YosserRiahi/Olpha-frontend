@@ -122,6 +122,16 @@ class AuthNotifier extends Notifier<AuthState> {
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
+  // ── Update profile ────────────────────────────────────────────────────────
+  Future<void> updateProfile({required String name}) async {
+    try {
+      final updated = await _authService.updateProfile(name: name);
+      state = state.copyWith(user: updated);
+    } catch (_) {
+      // Silently fail — user can retry
+    }
+  }
+
   // ── Refresh status (manual fallback on pending screen) ───────────────────
   Future<void> refreshMe() async {
     state = state.copyWith(status: AuthStatus.loading, clearError: true);

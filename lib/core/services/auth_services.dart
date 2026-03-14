@@ -147,6 +147,26 @@ class AuthService {
     return _parseAuthResult(res.body);
   }
 
+  // PATCH /auth/me — update display name
+  Future<AuthUser> updateProfile({required String name}) async {
+    final token = await getAccessToken();
+    if (token == null) throw Exception('Not authenticated');
+    final res = await http.patch(
+      Uri.parse('$_baseUrl/auth/me'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'name': name}),
+    );
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw Exception(body['error'] ?? 'Update failed');
+    }
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return AuthUser.fromJson(data['user'] as Map<String, dynamic>);
+  }
+
   Future<bool> refreshAccessToken() async {
     final refresh = await getRefreshToken();
     if (refresh == null) return false;

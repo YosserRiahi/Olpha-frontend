@@ -44,6 +44,7 @@ class ProductService {
     required double price,
     int stock = 0,
     String? category,
+    List<String> imageUrls = const [],
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/products'),
@@ -54,6 +55,7 @@ class ProductService {
         'price': price,
         'stock': stock,
         if (category != null) 'category': category,
+        if (imageUrls.isNotEmpty) 'imageUrls': imageUrls,
       }),
     );
     if (res.statusCode != 201) {
