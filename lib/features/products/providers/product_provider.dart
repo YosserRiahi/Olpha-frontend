@@ -2,6 +2,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/product_model.dart';
 import '../data/product_service.dart';
 
+// ── Filter class for the buyer product feed ───────────────────────────────────
+class AllProductsFilter {
+  final String? category;
+  final String? search;
+  const AllProductsFilter({this.category, this.search});
+
+  @override
+  bool operator ==(Object other) =>
+      other is AllProductsFilter &&
+      category == other.category &&
+      search == other.search;
+
+  @override
+  int get hashCode => Object.hash(category, search);
+}
+
 // ── Seller: own products notifier ────────────────────────────────────────────
 class MyProductsNotifier extends AsyncNotifier<List<ProductModel>> {
   final _service = ProductService();
@@ -72,4 +88,29 @@ final shopProductsProvider =
 // ── Public: single product by id ─────────────────────────────────────────────
 final productByIdProvider = FutureProvider.family<ProductModel, String>(
   (ref, id) => ProductService().getProduct(id),
+);
+
+// ── Public: all active products (buyer home feed) ────────────────────────────
+final allProductsProvider =
+    FutureProvider.family<List<ProductModel>, AllProductsFilter>(
+  (ref, filter) => ProductService()
+      .listAllProducts(category: filter.category, search: filter.search),
+);
+
+// ── Buyer: in-memory favorites (set of product IDs) ──────────────────────────
+class FavoritesNotifier extends StateNotifier<Set<String>> {
+  FavoritesNotifier() : super({});
+
+  void toggle(String id) {
+    state = state.contains(id)
+        ? (Set<String>.from(state)..remove(id))
+        : {...state, id};
+  }
+
+  bool isFavorited(String id) => state.contains(id);
+}
+
+final favoritesProvider =
+    StateNotifierProvider<FavoritesNotifier, Set<String>>(
+  (_) => FavoritesNotifier(),
 );

@@ -123,6 +123,29 @@ class ProductService {
         .toList();
   }
 
+  // ── Public: all active products across all approved shops ───────────────────
+  Future<List<ProductModel>> listAllProducts({
+    String? category,
+    String? search,
+  }) async {
+    final params = <String, String>{
+      if (category != null && category != 'All') 'category': category,
+      if (search != null && search.isNotEmpty) 'search': search,
+    };
+    final uri = Uri.parse('$_baseUrl/products').replace(
+      queryParameters: params.isNotEmpty ? params : null,
+    );
+    final res = await http.get(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (res.statusCode != 200) throw Exception('Failed to load products');
+    final list = jsonDecode(res.body) as List<dynamic>;
+    return list
+        .map((e) => ProductModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   // ── Public: get single product ──────────────────────────────────────────────
   Future<ProductModel> getProduct(String id) async {
     final res = await http.get(

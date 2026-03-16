@@ -10,6 +10,8 @@ class ProductModel {
   final List<String> tags;
   final bool isActive;
   final DateTime createdAt;
+  // Populated by the "all products" public endpoint (includes shop name)
+  final String? shopName;
 
   const ProductModel({
     required this.id,
@@ -23,6 +25,7 @@ class ProductModel {
     required this.tags,
     required this.isActive,
     required this.createdAt,
+    this.shopName,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) => ProductModel(
@@ -43,6 +46,7 @@ class ProductModel {
             [],
         isActive: json['isActive'] as bool? ?? true,
         createdAt: DateTime.parse(json['createdAt'] as String),
+        shopName: json['shopName'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -65,6 +69,7 @@ class ProductModel {
     String? category,
     List<String>? tags,
     bool? isActive,
+    String? shopName,
   }) =>
       ProductModel(
         id: id,
@@ -78,5 +83,6 @@ class ProductModel {
         tags: tags ?? this.tags,
         isActive: isActive ?? this.isActive,
         createdAt: createdAt,
+        shopName: shopName ?? this.shopName,
       );
 }

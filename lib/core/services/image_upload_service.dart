@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'dart:convert';
 
 class ImageUploadService {
@@ -21,7 +22,11 @@ class ImageUploadService {
       request.headers['Authorization'] = 'Bearer $token';
     }
 
-    request.files.add(await http.MultipartFile.fromPath('image', file.path));
+    request.files.add(await http.MultipartFile.fromPath(
+      'image',
+      file.path,
+      contentType: MediaType('image', 'jpeg'),
+    ));
 
     final streamed = await request.send();
     final body = await streamed.stream.bytesToString();

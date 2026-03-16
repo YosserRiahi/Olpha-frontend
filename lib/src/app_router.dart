@@ -11,8 +11,9 @@ import '../features/seller/presentation/screens/edit_shop_screen.dart';
 import '../features/products/presentation/screens/add_edit_product_screen.dart';
 import '../features/ai/presentation/screens/ai_test_page.dart';
 import '../features/onboarding/presentation/screens/onboarding_screen.dart';
-import '../features/home/presentation/screens/home_screen.dart';
+import '../features/buyer/presentation/screens/buyer_shell_screen.dart';
 import '../features/shops/presentation/screens/shop_detail_screen.dart';
+import '../features/products/presentation/screens/product_detail_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = _RouterNotifier(ref);
@@ -23,7 +24,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/login',          builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/signup',         builder: (_, __) => const SignupScreen()),
-      GoRoute(path: '/home',           builder: (_, __) => const HomeScreen()),
+      GoRoute(path: '/home',           builder: (_, __) => const BuyerShellScreen()),
       GoRoute(path: '/seller-pending',   builder: (_, __) => const SellerPendingScreen()),
       GoRoute(path: '/seller-rejected',  builder: (_, __) => const SellerRejectedScreen()),
       GoRoute(path: '/seller-dashboard', builder: (_, __) => const SellerShellScreen()),
@@ -43,6 +44,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/shops/:id',
         builder: (_, state) =>
             ShopDetailScreen(shopId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/products/:id',
+        builder: (_, state) =>
+            ProductDetailScreen(productId: state.pathParameters['id']!),
       ),
     ],
   );
